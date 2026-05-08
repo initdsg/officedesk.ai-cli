@@ -2,6 +2,18 @@
   "name": "officedesk",
   "version": "0.0.1",
   "description": "Installs all officedesk AI plugins",
+  "bin": {
+    "officedesk-plugin-email": "bin/officedesk-plugin-email.js",
+    "officedesk-plugin-gmail": "bin/officedesk-plugin-gmail.js",
+    "officedesk-plugin-google-calendar": "bin/officedesk-plugin-google-calendar.js",
+    "officedesk-plugin-sheets": "bin/officedesk-plugin-sheets.js",
+    "officedesk-plugin-jira": "bin/officedesk-plugin-jira.js",
+    "officedesk-plugin-odoo": "bin/officedesk-plugin-odoo.js",
+    "officedesk-plugin-xero": "bin/officedesk-plugin-xero.js"
+  },
+  "files": [
+    "bin"
+  ],
   "dependencies": {
     "@officedesk/plugin-email": "*",
     "@officedesk/plugin-gmail": "*",
