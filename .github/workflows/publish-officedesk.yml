@@ -1,0 +1,49 @@
+name: Publish officedesk
+
+on:
+  push:
+    tags:
+      - 'officedesk/v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Parse version from tag
+        id: parse
+        run: |
+          TAG=${GITHUB_REF_NAME}       # e.g. officedesk/v1.2.3
+          VERSION=${TAG#*/v}           # 1.2.3
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set version
+        run: npm version ${{ steps.parse.outputs.version }} --no-git-tag-version
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(release): bump officedesk to v${{ steps.parse.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

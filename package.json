@@ -1,0 +1,22 @@
+{
+  "name": "officedesk",
+  "version": "0.0.1",
+  "description": "Installs all officedesk AI plugins",
+  "dependencies": {
+    "@officedesk/plugin-email": "*",
+    "@officedesk/plugin-gmail": "*",
+    "@officedesk/plugin-google-calendar": "*",
+    "@officedesk/plugin-google-sheets": "*",
+    "@officedesk/plugin-jira": "*",
+    "@officedesk/plugin-odoo": "*",
+    "@officedesk/plugin-xero": "*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/initdsg/officedesk.ai-cli.git"
+  }
+}
