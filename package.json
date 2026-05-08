@@ -1,6 +1,6 @@
 {
   "name": "officedesk",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Installs all officedesk AI plugins",
   "bin": {
     "officedesk-plugin-email": "bin/officedesk-plugin-email.js",
