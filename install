@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ──────────────────────────────────────────────────────────────────────
+# OfficeDesk AI — Installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash
+#        curl -fsSL ... | bash -s plugin-gmail plugin-jira
+# ──────────────────────────────────────────────────────────────────────
+
+INSTALL_DIR="$HOME/.officedesk/bin"
+GITHUB_REPO="initdsg/officedesk.ai-cli"
+GITHUB_API="https://api.github.com/repos/$GITHUB_REPO/releases?per_page=50"
+GITHUB_DL="https://github.com/$GITHUB_REPO/releases/download"
+
+# Product registry: "name|tag_prefix|binary_name"
+PRODUCTS=(
+  "officedesk|officedesk-v|officedesk"
+  "plugin-gmail|plugin-gmail-v|officedesk-plugin-gmail"
+  "plugin-google-calendar|plugin-google-calendar-v|officedesk-plugin-google-calendar"
+  "plugin-google-sheets|plugin-google-sheets-v|officedesk-plugin-google-sheets"
+  "plugin-jira|plugin-jira-v|officedesk-plugin-jira"
+  "plugin-email|plugin-email-v|officedesk-plugin-email"
+  "plugin-odoo|plugin-odoo-v|officedesk-plugin-odoo"
+  "plugin-xero|plugin-xero-v|officedesk-plugin-xero"
+)
+
+# ── Colors (TTY only) ─────────────────────────────────────────────────
+Color_Off='' Red='' Green='' Dim='' Bold=''
+if [[ -t 1 ]]; then
+  Color_Off='\033[0m'
+  Red='\033[0;31m'
+  Green='\033[0;32m'
+  Dim='\033[0;2m'
+  Bold='\033[1m'
+fi
+
+error()   { echo -e "${Red}error${Color_Off}: $*" >&2; exit 1; }
+info()    { echo -e "${Dim}$*${Color_Off}"; }
+success() { echo -e "${Green}$*${Color_Off}"; }
+
+tildify() {
+  if [[ "$1" == "$HOME"* ]]; then echo "~${1#$HOME}"; else echo "$1"; fi
+}
+
+# ── Platform detection ────────────────────────────────────────────────
+detect_platform() {
+  case "$(uname -ms)" in
+    'Darwin x86_64') PLATFORM="darwin-x64"  ;;
+    'Darwin arm64')  PLATFORM="darwin-arm64" ;;
+    'Linux '*)       PLATFORM="linux"        ;;
+    *) error "unsupported platform: $(uname -ms)" ;;
+  esac
+}
+
+# ── Product registry helpers ──────────────────────────────────────────
+product_names() {
+  local entry
+  for entry in "${PRODUCTS[@]}"; do echo "${entry%%|*}"; done
+}
+
+lookup_product() {
+  local name="$1" entry
+  for entry in "${PRODUCTS[@]}"; do
+    [[ "${entry%%|*}" == "$name" ]] && echo "$entry" && return 0
+  done
+  return 1
+}
+
+# ── Fetch all release tags once ───────────────────────────────────────
+RELEASES_JSON=""
+
+fetch_releases() {
+  info "Fetching releases..."
+  RELEASES_JSON=$(curl -fsSL "$GITHUB_API" 2>/dev/null) ||
+    error "Failed to reach GitHub API. Check your internet connection."
+}
+
+latest_tag_for() {
+  local prefix="$1"
+  while IFS= read -r line; do
+    if [[ "$line" =~ \"tag_name\":[[:space:]]*\"([^\"]+)\" ]]; then
+      local tag="${BASH_REMATCH[1]}"
+      [[ "$tag" == ${prefix}* ]] && echo "$tag" && return 0
+    fi
+  done <<< "$RELEASES_JSON"
+  return 1
+}
+
+# ── Download & install one product ───────────────────────────────────
+install_product() {
+  local name="$1"
+  local entry tag_prefix binary_name tag asset dest
+
+  entry=$(lookup_product "$name")
+  IFS='|' read -r _ tag_prefix binary_name <<< "$entry"
+
+  tag=$(latest_tag_for "$tag_prefix") ||
+    error "No release found for '$name'"
+
+  asset="${binary_name}-${PLATFORM}"
+  dest="$INSTALL_DIR/$binary_name"
+
+  info "Installing $name ($tag)..."
+  curl --fail --location --progress-bar --output "$dest" "$GITHUB_DL/$tag/$asset" ||
+    error "Failed to download $asset"
+  chmod +x "$dest"
+  success "Installed $(tildify "$dest")"
+}
+
+# ── PATH setup ────────────────────────────────────────────────────────
+ADDED_TO_RC=false
+
+setup_path() {
+  export PATH="$INSTALL_DIR:$PATH"
+
+  local path_line="export PATH=\"\$HOME/.officedesk/bin:\$PATH\""
+  local shell_name
+  shell_name=$(basename "${SHELL:-bash}")
+
+  case "$shell_name" in
+    fish)
+      local config="$HOME/.config/fish/config.fish"
+      if [[ -w "$config" ]] && ! grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+        printf '\n# officedesk\nfish_add_path $HOME/.officedesk/bin\n' >> "$config"
+        info "Added ~/.officedesk/bin to \$PATH in $(tildify "$config")"
+        ADDED_TO_RC=true
+      fi
+      ;;
+    zsh)
+      local config="$HOME/.zshrc"
+      if [[ -w "$config" ]] && ! grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+        printf '\n# officedesk\n%s\n' "$path_line" >> "$config"
+        info "Added ~/.officedesk/bin to \$PATH in $(tildify "$config")"
+        ADDED_TO_RC=true
+      fi
+      ;;
+    *)
+      for config in "$HOME/.bashrc" "$HOME/.bash_profile"; do
+        [[ -w "$config" ]] || continue
+        grep -qF ".officedesk/bin" "$config" 2>/dev/null && continue
+        printf '\n# officedesk\n%s\n' "$path_line" >> "$config"
+        info "Added ~/.officedesk/bin to \$PATH in $(tildify "$config")"
+        ADDED_TO_RC=true
+        break
+      done
+      ;;
+  esac
+
+  if [[ "$ADDED_TO_RC" == false ]]; then
+    info "Manually add to your shell profile: $path_line"
+  fi
+}
+
+# ── Main ──────────────────────────────────────────────────────────────
+main() {
+  [[ -t 1 ]] || exec 1>/dev/tty 2>/dev/tty
+
+  local requested
+  if [[ $# -eq 0 ]]; then
+    requested=(officedesk)
+  else
+    requested=("$@")
+  fi
+
+  # Validate all products up front
+  local name
+  for name in "${requested[@]}"; do
+    lookup_product "$name" > /dev/null ||
+      error "unknown product '$name'\n       available: $(product_names | tr '\n' ' ')"
+  done
+
+  detect_platform
+  info "Platform: $PLATFORM"
+  mkdir -p "$INSTALL_DIR"
+
+  fetch_releases
+
+  for name in "${requested[@]}"; do
+    install_product "$name"
+  done
+
+  setup_path
+
+  echo
+  success "Done!"
+  if [[ "$ADDED_TO_RC" == true ]]; then
+    info "Restart your shell or run: exec \$SHELL"
+  fi
+}
+
+main "$@"
