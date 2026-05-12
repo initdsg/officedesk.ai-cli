@@ -1,12 +1,33 @@
-# officedesk
+# OfficeDesk.ai
 
 Master CLI for [OfficeDesk AI](https://github.com/initdsg/officedesk.ai). Discovers and delegates to `officedesk-plugin-*` executables in `$PATH` using the Git-style delegation pattern.
 
 ## Installation
 
 ```bash
-npm install -g officedesk
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash
 ```
+
+This installs `officedesk` to `~/.officedesk/bin` and adds it to your `$PATH`.
+
+To install specific plugins alongside the CLI, pass them as arguments:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s officedesk plugin-gmail plugin-jira
+```
+
+Available products:
+
+| Product | Description |
+|---|---|
+| `officedesk` | Master CLI |
+| `plugin-email` | Email |
+| `plugin-gmail` | Gmail |
+| `plugin-google-calendar` | Google Calendar |
+| `plugin-google-sheets` | Google Sheets |
+| `plugin-jira` | Jira |
+| `plugin-odoo` | Odoo |
+| `plugin-xero` | Xero |
 
 ## How it works
 
@@ -22,7 +43,7 @@ This means you can install any OfficeDesk plugin globally and use it immediately
 
 ```bash
 # Install the CLI and a plugin
-npm install -g officedesk @officedesk/plugin-gmail
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s officedesk plugin-gmail
 
 # Delegate a command to the plugin
 officedesk plugin-gmail search-messages --query="subject:invoice"
@@ -123,15 +144,10 @@ The first matching executable found for each plugin name wins. Platform-specific
 
 ## Installing plugins
 
-Each OfficeDesk plugin is a separate npm package. Install the ones you need globally alongside the CLI:
+Install additional plugins by passing their names to the install script:
 
 ```bash
-npm install -g officedesk \
-  @officedesk/plugin-gmail \
-  @officedesk/plugin-slack \
-  @officedesk/plugin-google-drive \
-  @officedesk/plugin-jira \
-  @officedesk/plugin-xero
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s plugin-gmail plugin-google-calendar plugin-google-sheets plugin-jira plugin-email plugin-odoo plugin-xero
 ```
 
 Once installed, they are automatically discovered the next time you run `officedesk`.
