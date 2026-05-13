@@ -1,6 +1,6 @@
 # OfficeDesk.ai
 
-Master CLI for [OfficeDesk AI](https://github.com/initdsg/officedesk.ai). Discovers and delegates to `officedesk-plugin-*` executables in `$PATH` using the Git-style delegation pattern.
+Master CLI for [OfficeDesk AI](https://officedesk.ai). Discovers and delegates to `officedesk-plugin-*` executables in `$PATH` using the Git-style delegation pattern.
 
 ## Installation
 
