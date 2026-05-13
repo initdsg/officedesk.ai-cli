@@ -1,14 +1,74 @@
-# officedesk
+# OfficeDesk.ai
 
 Master CLI for [OfficeDesk AI](https://github.com/initdsg/officedesk.ai). Discovers and delegates to `officedesk-plugin-*` executables in `$PATH` using the Git-style delegation pattern.
 
 ## Installation
 
+### macOS & Linux (bash/zsh)
+
 ```bash
-npm install -g officedesk
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash
 ```
 
+This installs `officedesk` to `~/.officedesk/bin` (or `%USERPROFILE%\.officedesk\bin` on Windows) and adds it to your PATH.
+
+To install specific plugins alongside the CLI, pass them as arguments:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s officedesk plugin-gmail plugin-jira
+```
+
+### Windows (PowerShell)
+
+```powershell
+# With OfficeDesk CLI only:
+iwr https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1 | iex
+
+# Install CLI and specific plugins at once:
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1))) officedesk plugin-gmail plugin-jira
+```
+
+- Installation must be done through **PowerShell** (`powershell.exe`), not Command Prompt.
+- If you encounter `running scripts is disabled on this system`, use one of:
+  - **Temporary Fix (Safest)**
+
+    Allows scripts for just the current session:
+    ```powershell
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+    ```
+  - **Permanent Fix (For Developers)**
+
+    Run PowerShell **as Administrator** to allow local scripts permanently:
+    ```powershell
+    Set-ExecutionPolicy RemoteSigned
+    ```
+    `RemoteSigned` means scripts you wrote locally will run, but scripts downloaded from the internet must be signed by a trusted publisher.
+- Installs to `%USERPROFILE%\.officedesk\bin` and adds it to the User PATH.
+- You may need to restart your terminal for the PATH update to take effect.
+- Downloads the latest `.exe` for each product (no architecture suffix required).
+
+
+Available products:
+
+| Product | Description |
+|---|---|
+| `officedesk` | Master CLI |
+| `plugin-email` | Email |
+| `plugin-gmail` | Gmail |
+| `plugin-google-calendar` | Google Calendar |
+| `plugin-google-sheets` | Google Sheets |
+| `plugin-jira` | Jira |
+| `plugin-odoo` | Odoo |
+| `plugin-xero` | Xero |
+
 ## How it works
+
+### Notes for Windows Users
+- All executables are installed as `.exe` files (no platform/arch suffix is needed).
+- Installation directory is `%USERPROFILE%\.officedesk\bin` and added to your PATH (user scope).
+- If you install new plugins or CLI, restart your terminal to refresh the PATH.
+- Usage, plugin discovery, and commands are otherwise identical.
+
 
 The `officedesk` CLI scans `$PATH` for executables matching the `officedesk-plugin-*` naming convention and delegates commands to them:
 
@@ -22,7 +82,7 @@ This means you can install any OfficeDesk plugin globally and use it immediately
 
 ```bash
 # Install the CLI and a plugin
-npm install -g officedesk @officedesk/plugin-gmail
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s officedesk plugin-gmail
 
 # Delegate a command to the plugin
 officedesk plugin-gmail search-messages --query="subject:invoice"
@@ -123,15 +183,16 @@ The first matching executable found for each plugin name wins. Platform-specific
 
 ## Installing plugins
 
-Each OfficeDesk plugin is a separate npm package. Install the ones you need globally alongside the CLI:
+Install additional plugins by passing their names to the installer:
 
+**macOS/Linux**:
 ```bash
-npm install -g officedesk \
-  @officedesk/plugin-gmail \
-  @officedesk/plugin-slack \
-  @officedesk/plugin-google-drive \
-  @officedesk/plugin-jira \
-  @officedesk/plugin-xero
+curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s plugin-gmail plugin-google-calendar plugin-google-sheets plugin-jira plugin-email plugin-odoo plugin-xero
+```
+
+**Windows (PowerShell)**:
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1))) plugin-gmail plugin-google-calendar plugin-google-sheets plugin-jira plugin-email plugin-odoo plugin-xero
 ```
 
 Once installed, they are automatically discovered the next time you run `officedesk`.
