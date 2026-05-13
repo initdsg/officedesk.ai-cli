@@ -121,7 +121,9 @@ setup_path() {
     fish)
       local config="$HOME/.config/fish/config.fish"
       [[ -e "$config" ]] || { mkdir -p "$(dirname "$config")" && touch "$config"; }
-      if [[ -w "$config" ]] && ! grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+      if grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+        ADDED_TO_RC=true
+      elif [[ -w "$config" ]]; then
         printf '\n# officedesk\nfish_add_path $HOME/.officedesk/bin\n' >> "$config"
         info "Added ~/.officedesk/bin to \$PATH in $(tildify "$config")"
         ADDED_TO_RC=true
@@ -130,7 +132,9 @@ setup_path() {
     zsh)
       local config="$HOME/.zshrc"
       [[ -e "$config" ]] || touch "$config"
-      if [[ -w "$config" ]] && ! grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+      if grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+        ADDED_TO_RC=true
+      elif [[ -w "$config" ]]; then
         printf '\n# officedesk\n%s\n' "$path_line" >> "$config"
         info "Added ~/.officedesk/bin to \$PATH in $(tildify "$config")"
         ADDED_TO_RC=true
@@ -139,7 +143,10 @@ setup_path() {
     *)
       for config in "$HOME/.bashrc" "$HOME/.bash_profile"; do
         [[ -w "$config" ]] || continue
-        grep -qF ".officedesk/bin" "$config" 2>/dev/null && continue
+        if grep -qF ".officedesk/bin" "$config" 2>/dev/null; then
+          ADDED_TO_RC=true
+          break
+        fi
         printf '\n# officedesk\n%s\n' "$path_line" >> "$config"
         info "Added ~/.officedesk/bin to \$PATH in $(tildify "$config")"
         ADDED_TO_RC=true
