@@ -30,11 +30,15 @@ iwr https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1
 
 - Installation must be done through **PowerShell** (`powershell.exe`), not Command Prompt.
 - If you encounter `running scripts is disabled on this system`, use one of:
-  - **Temporary Fix (Safest)** — allows scripts for just the current session:
+  - **Temporary Fix (Safest)**
+
+    Allows scripts for just the current session:
     ```powershell
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
     ```
-  - **Permanent Fix (For Developers)** — run PowerShell **as Administrator** to allow local scripts permanently:
+  - **Permanent Fix (For Developers)**
+
+    Run PowerShell **as Administrator** to allow local scripts permanently:
     ```powershell
     Set-ExecutionPolicy RemoteSigned
     ```
