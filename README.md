@@ -28,6 +28,11 @@ iwr https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1))) officedesk plugin-gmail plugin-jira
 ```
 
+- Installation must be done through **PowerShell** (`powershell.exe`), not Command Prompt.
+- If you encounter `running scripts is disabled on this system`, run this first:
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+  ```
 - Installs to `%USERPROFILE%\.officedesk\bin` and adds it to the User PATH.
 - You may need to restart your terminal for the PATH update to take effect.
 - Downloads the latest `.exe` for each product (no architecture suffix required).
