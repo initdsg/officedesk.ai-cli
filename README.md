@@ -4,17 +4,34 @@ Master CLI for [OfficeDesk AI](https://github.com/initdsg/officedesk.ai). Discov
 
 ## Installation
 
+### macOS & Linux (bash/zsh)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash
 ```
 
-This installs `officedesk` to `~/.officedesk/bin` and adds it to your `$PATH`.
+This installs `officedesk` to `~/.officedesk/bin` (or `%USERPROFILE%\.officedesk\bin` on Windows) and adds it to your PATH.
 
 To install specific plugins alongside the CLI, pass them as arguments:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s officedesk plugin-gmail plugin-jira
 ```
+
+### Windows (PowerShell)
+
+```powershell
+# With OfficeDesk CLI only:
+iwr https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1 | iex
+
+# Install CLI and specific plugins at once:
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1))) officedesk plugin-gmail plugin-jira
+```
+
+- Installs to `%USERPROFILE%\.officedesk\bin` and adds it to the User PATH.
+- You may need to restart your terminal for the PATH update to take effect.
+- Downloads the latest `.exe` for each product (no architecture suffix required).
+
 
 Available products:
 
@@ -30,6 +47,13 @@ Available products:
 | `plugin-xero` | Xero |
 
 ## How it works
+
+### Notes for Windows Users
+- All executables are installed as `.exe` files (no platform/arch suffix is needed).
+- Installation directory is `%USERPROFILE%\.officedesk\bin` and added to your PATH (user scope).
+- If you install new plugins or CLI, restart your terminal to refresh the PATH.
+- Usage, plugin discovery, and commands are otherwise identical.
+
 
 The `officedesk` CLI scans `$PATH` for executables matching the `officedesk-plugin-*` naming convention and delegates commands to them:
 
@@ -144,10 +168,16 @@ The first matching executable found for each plugin name wins. Platform-specific
 
 ## Installing plugins
 
-Install additional plugins by passing their names to the install script:
+Install additional plugins by passing their names to the installer:
 
+**macOS/Linux**:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install | bash -s plugin-gmail plugin-google-calendar plugin-google-sheets plugin-jira plugin-email plugin-odoo plugin-xero
+```
+
+**Windows (PowerShell)**:
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1))) plugin-gmail plugin-google-calendar plugin-google-sheets plugin-jira plugin-email plugin-odoo plugin-xero
 ```
 
 Once installed, they are automatically discovered the next time you run `officedesk`.
