@@ -151,4 +151,4 @@ await updateTicket({
 
 ## License
 
-ISC
+This project is licensed under a proprietary End User License Agreement (EULA). See the [LICENSE](LICENSE) file for details.
