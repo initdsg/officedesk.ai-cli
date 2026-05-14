@@ -363,4 +363,4 @@ Supported v1 actions: `move`, `trash`, `markSeen`, `markFlagged`.
 
 ## License
 
-ISC
+This project is licensed under a proprietary End User License Agreement (EULA). See the [LICENSE](LICENSE) file for details.
