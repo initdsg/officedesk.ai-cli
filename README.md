@@ -60,6 +60,7 @@ Available products:
 | `plugin-jira` | Jira |
 | `plugin-odoo` | Odoo |
 | `plugin-xero` | Xero |
+| `plugin-whatsapp` | Whatsapp |
 
 ## How it works
 
