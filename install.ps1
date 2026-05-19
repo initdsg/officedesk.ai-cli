@@ -6,7 +6,10 @@
     Usage: irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1 | iex
            & ([scriptblock]::Create((irm https://raw.githubusercontent.com/initdsg/officedesk.ai-cli/main/install.ps1))) plugin-gmail plugin-jira
 #>
-param([string[]]$Products = @('officedesk'))
+param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Products = @('officedesk')
+)
 
 $ErrorActionPreference = 'Stop'
 
