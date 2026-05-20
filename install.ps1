@@ -29,6 +29,7 @@ $ProductRegistry = [ordered]@{
     'plugin-email'           = 'plugin-email-v',           'officedesk-plugin-email'
     'plugin-odoo'            = 'plugin-odoo-v',            'officedesk-plugin-odoo'
     'plugin-xero'            = 'plugin-xero-v',            'officedesk-plugin-xero'
+    'plugin-whatsapp'        = 'plugin-whatsapp-v',        'officedesk-plugin-whatsapp'
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────
