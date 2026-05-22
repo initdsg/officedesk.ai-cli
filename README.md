@@ -62,6 +62,8 @@ Available products:
 | `plugin-xero` | Xero |
 | `plugin-whatsapp` | Whatsapp |
 
+> **Note:** `plugin-whatsapp` requires [Google Chrome](https://www.google.com/chrome/) or [Microsoft Edge](https://www.microsoft.com/edge/) to be installed on the system.
+
 ## How it works
 
 ### Notes for Windows Users
