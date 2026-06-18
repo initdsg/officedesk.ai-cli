@@ -9,6 +9,7 @@ Use `plugin-xero` to:
 - authenticate against Xero and refresh tenant access
 - fetch reference data before accounting writes
 - inspect bank transactions before reconciliation work
+- inspect and filter accounts payable bills
 - create or update Xero accounts and contacts
 - reconcile bank transactions with validated accounting inputs
 - list invoice branding themes before drafting invoices
@@ -17,6 +18,10 @@ Use `plugin-xero` to:
 - send authorised invoices to the customer as a separate delivery step
 - download the rendered invoice PDF for external delivery workflows
 - list and download uploaded invoice attachments
+- list, void, pay, and attach files to AR invoices
+- create, authorise, allocate, void, and delete credit notes
+- list and reverse payments applied to invoices or credit notes
+- fetch financial reports including Profit & Loss, Balance Sheet, Trial Balance, Aged Receivables, Aged Payables, Bank Summary, and Executive Summary
 
 ## Preferred Invocation
 
@@ -34,14 +39,27 @@ officedesk plugin-xero create-contact "Acme Pte Ltd"
 officedesk plugin-xero update-contact --contactId=<contact-id> --email=accounts@example.com --phone="+65 6000 0000"
 officedesk plugin-xero update-account --accountId=<account-id> --taxType=OUTPUT
 officedesk plugin-xero reconcile --file=uploads/reconcile.json
+officedesk plugin-xero get-invoices --status=AUTHORISED --from=2026-04-01
 officedesk plugin-xero draft-invoice --file=uploads/draft-invoice.json
 officedesk plugin-xero update-invoice --invoiceId=<invoice-id> --reference=INV-001-REV1
 officedesk plugin-xero authorise-invoice --invoiceId=<invoice-id>
+officedesk plugin-xero pay-invoice --invoiceId=<invoice-id> --accountCode=090 --date=2026-05-01 --amount=1200
+officedesk plugin-xero void-invoice --invoiceId=<invoice-id>
+officedesk plugin-xero attach-to-invoice --invoiceId=<invoice-id> --file=uploads/signed-contract.pdf
 officedesk plugin-xero delete-invoice --invoiceId=<invoice-id>
 officedesk plugin-xero send-invoice --invoiceId=<invoice-id>
 officedesk plugin-xero download-invoice-pdf --invoiceId=<invoice-id>
 officedesk plugin-xero list-invoice-attachments --invoiceId=<invoice-id>
 officedesk plugin-xero download-invoice-attachment --invoiceId=<invoice-id> --attachmentId=<attachment-id>
+officedesk plugin-xero get-credit-notes --type=ACCRECCREDIT --status=AUTHORISED
+officedesk plugin-xero draft-credit-note --type=ACCRECCREDIT --contactId=<contact-id> --description="Overcharge refund" --unitAmount=200 --accountCode=200 --taxType=OUTPUT
+officedesk plugin-xero authorise-credit-note --creditNoteId=<credit-note-id>
+officedesk plugin-xero allocate-credit-note --creditNoteId=<credit-note-id> --invoiceId=<invoice-id> --amount=200
+officedesk plugin-xero void-credit-note --creditNoteId=<credit-note-id>
+officedesk plugin-xero delete-credit-note --creditNoteId=<credit-note-id>
+officedesk plugin-xero get-payments --invoiceId=<invoice-id>
+officedesk plugin-xero delete-payment --paymentId=<payment-id>
+officedesk plugin-xero get-report --reportName=profit-loss --fromDate=2026-01-01 --toDate=2026-03-31
 ```
 
 Assume `officedesk` is already installed or otherwise available on the shell `PATH`.
@@ -97,24 +115,50 @@ cat uploads/draft-invoice.json | officedesk plugin-xero draft-invoice -f -
 | Need | Command |
 |---|---|
 | Authenticate with Xero | `login` |
+| **Accounts** | |
 | Refresh cached accounts | `get-accounts` |
-| Refresh cached contacts | `get-contacts` |
-| Refresh cached tax rates | `get-tax-rates` |
-| Discover invoice themes | `get-branding-themes` |
-| Inspect bank transactions | `get-bank-transactions` |
+| Filter accounts by type or status | `get-accounts --type=REVENUE` |
 | Create a chart of accounts entry | `create-account` |
+| Update an account | `update-account` |
+| **Contacts** | |
+| Refresh cached contacts | `get-contacts` |
+| Search contacts by name | `get-contacts --searchTerm=Acme` |
+| Fetch contacts by IDs | `get-contacts --ids=ID1,ID2` |
 | Create a contact | `create-contact` |
 | Update a contact | `update-contact` |
-| Update an account | `update-account` |
+| **Tax & Themes** | |
+| Refresh cached tax rates | `get-tax-rates` |
+| Discover invoice themes | `get-branding-themes` |
+| **Bank** | |
+| Inspect bank transactions | `get-bank-transactions` |
 | Reconcile a bank transaction | `reconcile` |
+| **AR Invoices** | |
+| List AR invoices | `get-invoices` |
 | Create a draft invoice | `draft-invoice` |
 | Update a draft invoice | `update-invoice` |
 | Move a draft invoice to authorised | `authorise-invoice` |
-| Delete a draft invoice | `delete-invoice` |
+| Record payment against an AR invoice | `pay-invoice` |
+| Void an authorised AR invoice | `void-invoice` |
+| Attach a file to an AR invoice | `attach-to-invoice` |
 | Email an authorised invoice | `send-invoice` |
 | Download the rendered invoice PDF | `download-invoice-pdf` |
 | List uploaded invoice attachments | `list-invoice-attachments` |
 | Download one uploaded invoice attachment | `download-invoice-attachment` |
+| Delete a draft invoice | `delete-invoice` |
+| **AP Bills** | |
+| List accounts payable bills | `get-bills` |
+| **Credit Notes** | |
+| List credit notes | `get-credit-notes` |
+| Create a draft credit note | `draft-credit-note` |
+| Authorise a credit note | `authorise-credit-note` |
+| Allocate a credit note against an invoice | `allocate-credit-note` |
+| Void an authorised credit note | `void-credit-note` |
+| Delete a draft credit note | `delete-credit-note` |
+| **Payments** | |
+| List payments on invoices or credit notes | `get-payments` |
+| Reverse a payment | `delete-payment` |
+| **Reports** | |
+| Fetch a financial report | `get-report` |
 
 ## 1. Authenticate
 
@@ -138,11 +182,35 @@ What an agent should know:
 
 ## 2. Get Accounts
 
-Use `get-accounts` before reconciliation or invoice work when you need a verified revenue, expense, or bank account code.
+Use `get-accounts` before reconciliation or invoice work when you need a verified revenue, expense, or bank account code. Pass filters to narrow results server-side instead of fetching the full chart every time.
 
 ```bash
+# Fetch all accounts
 officedesk plugin-xero get-accounts
+
+# Filter by type
+officedesk plugin-xero get-accounts --type=REVENUE
+officedesk plugin-xero get-accounts --type=BANK
+
+# Filter by status
+officedesk plugin-xero get-accounts --status=ACTIVE
+officedesk plugin-xero get-accounts --status=ARCHIVED
+
+# Filter by class
+officedesk plugin-xero get-accounts --class=EXPENSE
+
+# Filter by exact name or code
+officedesk plugin-xero get-accounts --name="Sales"
+officedesk plugin-xero get-accounts --code=200
 ```
+
+Available filters (all single-value; comma input is rejected):
+
+- `--type=TYPE` — account type, e.g. `REVENUE`, `EXPENSE`, `BANK`
+- `--status=STATUS` — `ACTIVE` or `ARCHIVED`
+- `--class=CLASS` — `ASSET`, `LIABILITY`, `EQUITY`, `REVENUE`, or `EXPENSE`
+- `--name=NAME` — exact account name match
+- `--code=CODE` — exact account code match
 
 What it does:
 
@@ -175,11 +243,35 @@ When to use it:
 
 ## 3. Get Contacts
 
-Use `get-contacts` before any workflow that needs a verified customer or supplier identifier.
+Use `get-contacts` before any workflow that needs a verified customer or supplier identifier. Pass filters to avoid fetching all contacts when you only need a subset.
 
 ```bash
+# Fetch all contacts (paginated)
 officedesk plugin-xero get-contacts
+
+# Full-text search (name, email, etc.)
+officedesk plugin-xero get-contacts --searchTerm="Acme"
+
+# Batch fetch by known IDs (single API call, no pagination)
+officedesk plugin-xero get-contacts --ids=ID1,ID2,ID3
+
+# Exact filter clause matches
+officedesk plugin-xero get-contacts --name="Acme Pte Ltd"
+officedesk plugin-xero get-contacts --email=accounts@example.com
+
+# Include archived contacts or return summary fields only
+officedesk plugin-xero get-contacts --includeArchived
+officedesk plugin-xero get-contacts --summaryOnly
 ```
+
+Available filters:
+
+- `--searchTerm=TEXT` — Xero full-text search across name, email, and other contact fields
+- `--ids=ID1,ID2,...` — comma-separated contact IDs; triggers a single batch API call and skips pagination
+- `--name=NAME` — exact name match via filter clause
+- `--email=EMAIL` — exact email match via filter clause
+- `--includeArchived` — include archived contacts in results
+- `--summaryOnly` — return lightweight summary fields only
 
 What it does:
 
@@ -213,7 +305,7 @@ When to use it:
 
 `get-contacts` is a summary listing. Use `get-contact` when you need the authoritative stored website, phone, tax number, or address fields for one specific contact.
 
-## 3. Get Contact
+## 3B. Get Contact
 
 Use `get-contact` when you need a full contact snapshot for verification.
 
@@ -343,34 +435,114 @@ When to use it:
 
 ## 6. Get Bank Transactions
 
-Use `get-bank-transactions` when you need to inspect candidate transactions before reconciliation.
+Use `get-bank-transactions` when you need to inspect candidate transactions before reconciliation. All filters are applied server-side.
 
 ```bash
-officedesk plugin-xero get-bank-transactions --account="Main Bank" --unreconciled --limit=50 --page=1
+# Unreconciled transactions by bank account ID (preferred)
+officedesk plugin-xero get-bank-transactions --bankAccountId=<account-id> --unreconciled
+officedesk plugin-xero get-bills --status=AUTHORISED --from=2026-04-01 --to=2026-04-30
+
+# Legacy: filter by bank account name (resolved to ID via a secondary lookup)
+officedesk plugin-xero get-bank-transactions --account="Main Bank" --unreconciled
+
+# Filter by date range
+officedesk plugin-xero get-bank-transactions --from=2026-04-01 --to=2026-04-30
+
+# Filter by transaction type or status
+officedesk plugin-xero get-bank-transactions --type=SPEND --status=AUTHORISED
+
+# Filter by contact
+officedesk plugin-xero get-bank-transactions --contactId=<contact-id>
+
+# Pagination
+officedesk plugin-xero get-bank-transactions --limit=50 --page=2
 ```
 
-Useful options:
+Available options (all single-value; comma input is rejected):
 
-- `--account=NAME`
-- `--unreconciled`
-- `--limit=N`
-- `--page=N`
+- `--bankAccountId=ID` — filter by bank account ID (preferred; avoids extra API round-trip)
+- `--account=NAME` — legacy: resolve bank account by name to an ID (use `--bankAccountId` when the ID is known)
+- `--type=TYPE` — transaction type: `SPEND`, `RECEIVE`, `SPEND-PREPAYMENT`, `RECEIVE-PREPAYMENT`, etc.
+- `--status=STATUS` — `AUTHORISED` or `DELETED`
+- `--contactId=ID` — filter by contact ID
+- `--unreconciled` — shorthand for `IsReconciled==false`
+- `--from=YYYY-MM-DD` — transactions on or after this date (server-side)
+- `--to=YYYY-MM-DD` — transactions on or before this date (server-side)
+- `--limit=N` — maximum results (default: 100)
+- `--page=N` — page number (default: 1)
+
+Output is a structured JSON envelope (`GetBankTransactionsResult`) with `success`, `count`, `data[]`, and `meta`.
+
+## 7. Get Bills
+
+Use `get-bills` to list accounts payable (ACCPAY) invoices with server-side filtering. All date and amount ranges are applied by Xero, not client-side.
+
+```bash
+# All bills
+officedesk plugin-xero get-bills
+
+# Filter by one or more statuses (comma-separated)
+officedesk plugin-xero get-bills --status=AUTHORISED
+officedesk plugin-xero get-bills --status=DRAFT,AUTHORISED
+
+# Filter by date range (server-side)
+officedesk plugin-xero get-bills --from=2026-04-01 --to=2026-04-30
+
+# Filter by due date range
+officedesk plugin-xero get-bills --dueDateFrom=2026-05-01 --dueDateTo=2026-05-31
+
+# Filter by contact
+officedesk plugin-xero get-bills --contactId=<contact-id>
+officedesk plugin-xero get-bills --contactIds=ID1,ID2
+
+# Batch fetch by bill ID or supplier invoice number
+officedesk plugin-xero get-bills --ids=ID1,ID2
+officedesk plugin-xero get-bills --invoiceNumbers=INV-001,INV-002
+
+# Full-text search
+officedesk plugin-xero get-bills --searchTerm="consulting"
+
+# Amount range filter
+officedesk plugin-xero get-bills --amountDueMin=100 --amountDueMax=5000
+
+# Lightweight response
+officedesk plugin-xero get-bills --summaryOnly
+
+# Pagination
+officedesk plugin-xero get-bills --limit=50 --page=2
+```
+
+Available options:
+
+- `--status=S1,S2` — one or more of `DRAFT`, `SUBMITTED`, `AUTHORISED`, `PAID`, `VOIDED` (comma-separated)
+- `--contactId=ID` — single contact ID (alias for `--contactIds`)
+- `--contactIds=ID1,ID2` — comma-separated contact IDs (batch)
+- `--ids=ID1,ID2` — comma-separated bill IDs (batch fetch)
+- `--invoiceNumbers=N1,N2` — comma-separated supplier invoice/reference numbers
+- `--searchTerm=TEXT` — Xero full-text search
+- `--from=YYYY-MM-DD` — bill date on or after (server-side)
+- `--to=YYYY-MM-DD` — bill date on or before (server-side)
+- `--dueDateFrom=YYYY-MM-DD` — due date on or after (server-side)
+- `--dueDateTo=YYYY-MM-DD` — due date on or before (server-side)
+- `--amountDueMin=N` — amount due ≥ N (server-side)
+- `--amountDueMax=N` — amount due ≤ N (server-side)
+- `--summaryOnly` — omit line items, payments, and attachments
+- `--limit=N` — maximum results (default: 100)
+- `--page=N` — page number (default: 1)
+- `--file=PATH` — JSON file with filter payload
 
 What an agent should inspect:
 
-- transaction date
-- amount
-- bank account context
-- reconciliation state
-- any transaction identifiers returned by the handler
+- `data[].billId`
+- `data[].invoiceNumber`
+- `data[].status`
+- `data[].contactName`
+- `data[].date`
+- `data[].dueDate`
+- `data[].total`
+- `data[].amountDue`
 
-When to use it:
-
-- before `reconcile`
-- when the user asks which transactions are still unreconciled
-- when you need to narrow a candidate transaction set by bank account and date range
-
-## 7. Create Account
+## 8. Create Account
 
 Use `create-account` to add a new chart of accounts entry.
 
@@ -402,7 +574,7 @@ Recommended sequence:
 2. check whether the code or name already exists
 3. run `create-account` only if the account is genuinely missing
 
-## 8. Create Contact
+## 9. Create Contact
 
 Use `create-contact` when the customer or supplier does not already exist.
 
@@ -422,7 +594,7 @@ Recommended sequence:
 2. check whether the contact already exists by name or email
 3. run `create-contact` only if needed
 
-## 9. Update Account
+## 10. Update Account
 
 Use `update-account` when a known Xero account needs to be amended.
 
@@ -442,7 +614,7 @@ What an agent should inspect first:
 - the existing account from `get-accounts`
 - whether the user asked to change tax treatment only or also code and naming
 
-## 10. Reconcile
+## 11. Reconcile
 
 Use `reconcile` when posting a bank transaction against a validated contact, account code, tax type, and amount.
 
@@ -493,7 +665,7 @@ Recommended sequence:
 4. build the reconcile payload
 5. run `reconcile`
 
-## 11. Draft Invoice
+## 12. Draft Invoice
 
 Use `draft-invoice` to create an accounts receivable invoice in `DRAFT` state.
 
@@ -595,7 +767,7 @@ Recommended sequence:
 5. create the draft invoice
 6. capture and report `invoiceID`
 
-## 12. Authorise Invoice
+## 13. Authorise Invoice
 
 Use `authorise-invoice` to move an existing draft invoice to `AUTHORISED`.
 
@@ -635,7 +807,7 @@ When to use it:
 - after a draft invoice has been reviewed and approved for authorisation
 - before `send-invoice`
 
-## 13. Send Invoice
+## 14. Send Invoice
 
 Use `send-invoice` only when the invoice is ready to be delivered to the customer contact by email.
 
@@ -675,7 +847,7 @@ What an agent should know:
 - it requires a valid `invoiceId`
 - it should generally be treated as a user approval boundary unless the user explicitly asked to send immediately
 
-## 14. Download Invoice Files
+## 15. Download Invoice Files
 
 Use `download-invoice-pdf` when you need the rendered invoice document as a PDF.
 
@@ -708,7 +880,404 @@ What an agent should know:
 - `download-invoice-attachment` downloads a file uploaded to the invoice record
 - attachment download can infer mime type from the invoice attachment list when the attachment exists in Xero metadata
 
-## 15. When To Use Direct Flags Versus Files
+## 16. Get AR Invoices
+
+Use `get-invoices` to list accounts receivable (ACCREC) invoices with server-side filtering. Mirrors `get-bills` but targets the AR side of the ledger.
+
+```bash
+# All AR invoices
+officedesk plugin-xero get-invoices
+
+# Filter by one or more statuses (comma-separated)
+officedesk plugin-xero get-invoices --status=AUTHORISED
+officedesk plugin-xero get-invoices --status=DRAFT,AUTHORISED
+
+# Filter by date range (server-side)
+officedesk plugin-xero get-invoices --from=2026-04-01 --to=2026-04-30
+
+# Filter by contact
+officedesk plugin-xero get-invoices --contactId=<contact-id>
+officedesk plugin-xero get-invoices --contactIds=ID1,ID2
+
+# Batch fetch by invoice ID or invoice number
+officedesk plugin-xero get-invoices --ids=ID1,ID2
+officedesk plugin-xero get-invoices --invoiceNumbers=INV-001,INV-002
+
+# Full-text search
+officedesk plugin-xero get-invoices --searchTerm="retainer"
+
+# Amount range filter
+officedesk plugin-xero get-invoices --amountDueMin=100 --amountDueMax=5000
+
+# Lightweight response
+officedesk plugin-xero get-invoices --summaryOnly
+
+# Pagination
+officedesk plugin-xero get-invoices --limit=50 --page=2
+```
+
+Available options:
+
+- `--status=S1,S2` — one or more of `DRAFT`, `SUBMITTED`, `AUTHORISED`, `PAID`, `VOIDED` (comma-separated)
+- `--contactId=ID` — single contact ID
+- `--contactIds=ID1,ID2` — comma-separated contact IDs
+- `--ids=ID1,ID2` — comma-separated invoice IDs
+- `--invoiceNumbers=N1,N2` — comma-separated invoice numbers
+- `--searchTerm=TEXT` — Xero full-text search
+- `--from=YYYY-MM-DD` — invoice date on or after (server-side)
+- `--to=YYYY-MM-DD` — invoice date on or before (server-side)
+- `--dueDateFrom=YYYY-MM-DD` — due date on or after (server-side)
+- `--dueDateTo=YYYY-MM-DD` — due date on or before (server-side)
+- `--amountDueMin=N` — amount due ≥ N (server-side)
+- `--amountDueMax=N` — amount due ≤ N (server-side)
+- `--summaryOnly` — omit line items and payments
+- `--limit=N` — maximum results (default: 100)
+- `--page=N` — page number (default: 1)
+
+What an agent should inspect:
+
+- `data[].billId` (the Xero invoiceID)
+- `data[].invoiceNumber`
+- `data[].status`
+- `data[].contactName`
+- `data[].date`
+- `data[].dueDate`
+- `data[].total`
+- `data[].amountDue`
+
+## 17. AR Invoice Actions
+
+### Void an Invoice
+
+Use `void-invoice` to void an `AUTHORISED` AR invoice. Only authorised invoices can be voided.
+
+```bash
+officedesk plugin-xero void-invoice --invoiceId=<invoice-id>
+```
+
+What an agent should know:
+
+- the invoice must be `AUTHORISED` — draft invoices should be deleted with `delete-invoice` instead
+- voiding is permanent and cannot be undone through the plugin
+
+### Pay an Invoice
+
+Use `pay-invoice` to record a payment against an `AUTHORISED` AR invoice.
+
+```bash
+officedesk plugin-xero pay-invoice \
+  --invoiceId=<invoice-id> \
+  --accountCode=090 \
+  --date=2026-05-01 \
+  --amount=1200
+```
+
+Optional inputs:
+
+- `--reference=TEXT` — payment reference
+- `--currencyRate=N` — exchange rate for foreign currency invoices
+
+What an agent should know:
+
+- the invoice must be `AUTHORISED`
+- the account code must correspond to a bank or clearing account — use `get-accounts --type=BANK` to identify the correct code
+- a partial payment leaves the invoice `AUTHORISED` with a reduced `amountDue`; a full payment moves it to `PAID`
+- use `get-payments --invoiceId=<id>` to inspect existing payments before adding another
+
+What an agent should inspect in the response:
+
+- `data[].paymentId`
+- `data[].status`
+- `data[].paidAmount`
+- `data[].remainingAmount`
+
+### Attach a File to an Invoice
+
+Use `attach-to-invoice` to upload a supporting document to an existing AR invoice.
+
+```bash
+officedesk plugin-xero attach-to-invoice --invoiceId=<invoice-id> --file=uploads/signed-contract.pdf
+```
+
+Optional:
+
+- `--filename=NAME` — override the filename shown in Xero (defaults to the local file name)
+
+What an agent should know:
+
+- the invoice must exist in Xero (any non-deleted status)
+- mime type is inferred from the file extension
+- use `list-invoice-attachments` to confirm upload success
+
+## 18. Credit Notes
+
+Credit notes reduce the amount a customer owes (`ACCRECCREDIT`) or reduce what you owe a supplier (`ACCPAYCREDIT`).
+
+### Get Credit Notes
+
+Use `get-credit-notes` to list credit notes with optional filtering.
+
+```bash
+# All credit notes
+officedesk plugin-xero get-credit-notes
+
+# Filter by type
+officedesk plugin-xero get-credit-notes --type=ACCRECCREDIT
+officedesk plugin-xero get-credit-notes --type=ACCPAYCREDIT
+
+# Filter by status
+officedesk plugin-xero get-credit-notes --status=AUTHORISED
+
+# Filter by date range (server-side)
+officedesk plugin-xero get-credit-notes --from=2026-04-01 --to=2026-04-30
+
+# Filter by contact or ID (client-side)
+officedesk plugin-xero get-credit-notes --contactIds=ID1,ID2
+officedesk plugin-xero get-credit-notes --ids=ID1,ID2
+
+# Pagination
+officedesk plugin-xero get-credit-notes --limit=50 --page=2
+```
+
+Available options:
+
+- `--type=ACCRECCREDIT|ACCPAYCREDIT|ALL` — credit note type (default: `ALL`)
+- `--status=S1,S2` — one or more of `DRAFT`, `SUBMITTED`, `AUTHORISED`, `PAID`, `VOIDED`
+- `--contactIds=ID1,ID2` — comma-separated contact IDs (filtered client-side)
+- `--ids=ID1,ID2` — comma-separated credit note IDs (filtered client-side)
+- `--from=YYYY-MM-DD` — date on or after (server-side)
+- `--to=YYYY-MM-DD` — date on or before (server-side)
+- `--summaryOnly` — lightweight response
+- `--limit=N` — maximum results (default: 100)
+- `--page=N` — page number (default: 1)
+
+What an agent should inspect:
+
+- `data[].creditNoteId`
+- `data[].creditNoteNumber`
+- `data[].type`
+- `data[].status`
+- `data[].contactName`
+- `data[].total`
+- `data[].remainingCredit`
+
+### Draft a Credit Note
+
+Use `draft-credit-note` to create a new credit note in `DRAFT` state.
+
+```bash
+officedesk plugin-xero draft-credit-note \
+  --type=ACCRECCREDIT \
+  --contactId=<contact-id> \
+  --description="Overcharge refund" \
+  --unitAmount=200 \
+  --accountCode=200 \
+  --taxType=OUTPUT
+```
+
+For multi-line credit notes use `--file`:
+
+```json
+{
+  "type": "ACCRECCREDIT",
+  "contactId": "contact-id",
+  "date": "2026-05-01",
+  "reference": "CN-001",
+  "lineItems": [
+    { "description": "Overcharge refund", "quantity": 1, "unitAmount": 200, "accountCode": "200", "taxType": "OUTPUT" }
+  ]
+}
+```
+
+Required inputs:
+
+- `type` — `ACCRECCREDIT` (AR) or `ACCPAYCREDIT` (AP)
+- `contactId`
+- `description`, `unitAmount`, `accountCode`, `taxType` (or `lineItems[]` via `--file`)
+
+What an agent should know:
+
+- run `get-contacts`, `get-accounts`, and `get-tax-rates` before drafting
+- capture the returned `creditNoteId` for subsequent steps
+
+### Authorise a Credit Note
+
+Use `authorise-credit-note` to move a `DRAFT` or `SUBMITTED` credit note to `AUTHORISED`.
+
+```bash
+officedesk plugin-xero authorise-credit-note --creditNoteId=<credit-note-id>
+```
+
+The credit note must be `AUTHORISED` before it can be allocated against an invoice.
+
+### Allocate a Credit Note
+
+Use `allocate-credit-note` to apply an authorised credit note against an outstanding invoice.
+
+```bash
+officedesk plugin-xero allocate-credit-note \
+  --creditNoteId=<credit-note-id> \
+  --invoiceId=<invoice-id> \
+  --amount=200 \
+  --date=2026-05-01
+```
+
+What an agent should know:
+
+- both the credit note and the invoice must be `AUTHORISED`
+- `amount` cannot exceed the credit note's `remainingCredit` or the invoice's `amountDue` — check both with `get-credit-notes` and `get-invoices --ids=<id>` first
+- the allocation date defaults to today if omitted
+
+### Void a Credit Note
+
+Use `void-credit-note` to void an `AUTHORISED` credit note that has not been fully allocated.
+
+```bash
+officedesk plugin-xero void-credit-note --creditNoteId=<credit-note-id>
+```
+
+### Delete a Credit Note
+
+Use `delete-credit-note` to permanently delete a `DRAFT` or `SUBMITTED` credit note.
+
+```bash
+officedesk plugin-xero delete-credit-note --creditNoteId=<credit-note-id>
+```
+
+## 19. Payments
+
+### Get Payments
+
+Use `get-payments` to list payments applied to invoices or credit notes.
+
+```bash
+# All recent payments
+officedesk plugin-xero get-payments
+
+# Filter by invoice
+officedesk plugin-xero get-payments --invoiceId=<invoice-id>
+
+# Filter by payment type
+officedesk plugin-xero get-payments --paymentType=ACCRECPAYMENT
+officedesk plugin-xero get-payments --paymentType=ACCPAYPAYMENT
+
+# Filter by status
+officedesk plugin-xero get-payments --status=AUTHORISED
+
+# Filter by date range
+officedesk plugin-xero get-payments --from=2026-04-01 --to=2026-04-30
+
+# Filter by bank account
+officedesk plugin-xero get-payments --accountId=<account-id>
+
+# Pagination
+officedesk plugin-xero get-payments --limit=50 --page=2
+```
+
+Available options:
+
+- `--invoiceId=ID` — filter by invoice ID
+- `--accountId=ID` — filter by bank or clearing account ID
+- `--status=STATUS` — `AUTHORISED` or `DELETED`
+- `--paymentType=TYPE` — `ACCRECPAYMENT` (AR) or `ACCPAYPAYMENT` (AP)
+- `--from=YYYY-MM-DD` — payment date on or after (server-side)
+- `--to=YYYY-MM-DD` — payment date on or before (server-side)
+- `--limit=N` — maximum results (default: 100)
+- `--page=N` — page number (default: 1)
+
+What an agent should inspect:
+
+- `data[].paymentId`
+- `data[].invoiceId`
+- `data[].invoiceNumber`
+- `data[].type`
+- `data[].status`
+- `data[].amount`
+- `data[].date`
+- `data[].reference`
+
+### Delete (Reverse) a Payment
+
+Use `delete-payment` to reverse a payment. This sets the payment status to `DELETED` in Xero and restores the invoice's outstanding balance.
+
+```bash
+officedesk plugin-xero delete-payment --paymentId=<payment-id>
+```
+
+What an agent should know:
+
+- this reverses the payment record, not the invoice
+- the invoice returns to `AUTHORISED` with its original or partial `amountDue`
+- run `get-payments --invoiceId=<id>` first to identify the correct `paymentId`
+
+## 20. Reports
+
+Use `get-report` to fetch a Xero financial report. Pass `--reportName` to select the report type.
+
+```bash
+# Profit & Loss for a date range
+officedesk plugin-xero get-report --reportName=profit-loss --fromDate=2026-01-01 --toDate=2026-03-31
+
+# Balance Sheet at a point in time
+officedesk plugin-xero get-report --reportName=balance-sheet --date=2026-03-31
+
+# Trial Balance
+officedesk plugin-xero get-report --reportName=trial-balance --date=2026-03-31
+
+# Aged Receivables by Contact (contactId required)
+officedesk plugin-xero get-report --reportName=aged-receivables --contactId=<contact-id>
+
+# Aged Payables by Contact (contactId required)
+officedesk plugin-xero get-report --reportName=aged-payables --contactId=<contact-id>
+
+# Bank Summary
+officedesk plugin-xero get-report --reportName=bank-summary --fromDate=2026-01-01 --toDate=2026-03-31
+
+# Executive Summary
+officedesk plugin-xero get-report --reportName=executive-summary --date=2026-03-31
+
+# Cash basis reporting
+officedesk plugin-xero get-report --reportName=profit-loss --fromDate=2026-01-01 --toDate=2026-03-31 --paymentsOnly
+
+# Periodic comparisons
+officedesk plugin-xero get-report --reportName=profit-loss --fromDate=2026-01-01 --toDate=2026-03-31 --periods=3 --timeframe=MONTH
+```
+
+Available report names:
+
+| Report Name | Description | Required Options |
+|---|---|---|
+| `profit-loss` | Profit & Loss | `--fromDate`, `--toDate` |
+| `balance-sheet` | Balance Sheet | `--date` |
+| `trial-balance` | Trial Balance | `--date` |
+| `aged-receivables` | Aged Receivables by Contact | `--contactId` |
+| `aged-payables` | Aged Payables by Contact | `--contactId` |
+| `bank-summary` | Bank Summary | `--fromDate`, `--toDate` |
+| `executive-summary` | Executive Summary | `--date` |
+
+Common options:
+
+- `--fromDate=YYYY-MM-DD` — start date (profit-loss, bank-summary, aged-*)
+- `--toDate=YYYY-MM-DD` — end date (profit-loss, bank-summary, aged-*)
+- `--date=YYYY-MM-DD` — balance date (balance-sheet, trial-balance, executive-summary, aged-*)
+- `--periods=N` — number of comparison periods (profit-loss, balance-sheet)
+- `--timeframe=MONTH|QUARTER|YEAR` — period granularity
+- `--paymentsOnly` — cash basis reporting (profit-loss, balance-sheet, trial-balance)
+- `--contactId=ID` — required for aged-receivables and aged-payables
+
+What an agent should inspect:
+
+- `data[]` — raw report rows as returned by Xero (section headers, row types, cells)
+- `meta.reportTitle`
+- `meta.reportDate`
+- `meta.reportName`
+
+What an agent should know:
+
+- reports return raw Xero row data; the agent is responsible for interpreting row types and cell values
+- `aged-receivables` and `aged-payables` require `--contactId` — fetch it from `get-contacts` first
+
+## 21. When To Use Direct Flags Versus Files
 
 Use direct flags when:
 
@@ -718,12 +1287,12 @@ Use direct flags when:
 
 Use `--file` when:
 
-- there are multiple invoice line items
+- there are multiple invoice or credit note line items
 - the payload is generated by another tool or workflow
 - you need a reusable artifact in `uploads/`
 - you want a stable record of what was sent to the plugin
 
-## 16. Output Expectations
+## 22. Output Expectations
 
 Most commands:
 
@@ -752,7 +1321,7 @@ Write commands typically return:
 - a created or updated Xero object
 - or a concise success envelope in the case of `send-invoice`
 
-## 17. End To End Workflows
+## 23. End To End Workflows
 
 ### Prepare reference data for invoice work
 
@@ -810,7 +1379,47 @@ officedesk plugin-xero get-tax-rates
 officedesk plugin-xero reconcile --type=SPEND --contactName="New Vendor Pte Ltd" --accountCode=610 --taxType=INPUT --date=2026-03-31 --amount=54 --description="Subscription"
 ```
 
-## 18. Failure Handling
+### Record payment against an AR invoice
+
+```bash
+officedesk plugin-xero get-invoices --status=AUTHORISED --contactId=<contact-id>
+officedesk plugin-xero get-accounts --type=BANK
+officedesk plugin-xero pay-invoice --invoiceId=<invoice-id> --accountCode=090 --date=2026-05-01 --amount=1200
+```
+
+### Reverse an incorrect payment
+
+```bash
+officedesk plugin-xero get-payments --invoiceId=<invoice-id>
+officedesk plugin-xero delete-payment --paymentId=<payment-id>
+```
+
+### Issue and apply an AR credit note
+
+```bash
+officedesk plugin-xero get-contacts
+officedesk plugin-xero get-accounts
+officedesk plugin-xero get-tax-rates
+officedesk plugin-xero draft-credit-note --type=ACCRECCREDIT --contactId=<contact-id> --description="Overcharge refund" --unitAmount=200 --accountCode=200 --taxType=OUTPUT
+officedesk plugin-xero authorise-credit-note --creditNoteId=<credit-note-id>
+officedesk plugin-xero get-invoices --status=AUTHORISED --contactId=<contact-id>
+officedesk plugin-xero allocate-credit-note --creditNoteId=<credit-note-id> --invoiceId=<invoice-id> --amount=200
+```
+
+### Fetch a Profit & Loss report for a quarter
+
+```bash
+officedesk plugin-xero get-report --reportName=profit-loss --fromDate=2026-01-01 --toDate=2026-03-31
+```
+
+### Review aged receivables for a contact
+
+```bash
+officedesk plugin-xero get-contacts --searchTerm="Acme"
+officedesk plugin-xero get-report --reportName=aged-receivables --contactId=<contact-id>
+```
+
+## 24. Failure Handling
 
 If a command fails, inspect the error and apply the likely fix.
 
@@ -825,8 +1434,20 @@ If a command fails, inspect the error and apply the likely fix.
 | Authorise succeeded but customer received nothing | Invoice was authorised only | Run `send-invoice` explicitly |
 | Send invoice failed | Invalid invoice state or Xero email rejection | Inspect the API response body and confirm the invoice is ready to send |
 | Download invoice attachment failed with unknown content type | Attachment metadata could not be resolved | Re run `list-invoice-attachments` and provide `--contentType` if needed |
+| `--status` rejected on `get-bank-statement-lines` | Value was not `unreconciled` or `reconciled`, or was comma-separated | Use a single valid status: `unreconciled` or `reconciled` |
+| `--type` / `--status` rejected on `get-bank-transactions` with comma error | Multi-value input on a single-predicate filter | Pass one value only; use `--ids` or `--contactIds` for batch lookups |
+| `get-bills` returns more results than expected with `--limit` | Date or amount filters not applied | Use `--from`, `--to`, `--amountDueMin`, `--amountDueMax` — all are server-side |
+| `void-invoice` rejects with status error | Invoice is not `AUTHORISED` | Use `delete-invoice` for drafts; check current status with `get-invoices --ids=<id>` |
+| `pay-invoice` fails with account code error | Account code is not a bank or clearing account | Re run `get-accounts --type=BANK` and use a valid code |
+| `Only AUTHORISED invoices can be paid` | Invoice is in the wrong status | Authorise the invoice first with `authorise-invoice` |
+| `creditNoteId is required` | Missing credit note identifier | Re run with a valid `--creditNoteId` from `get-credit-notes` |
+| `Only AUTHORISED credit notes can be voided` | Credit note is not in `AUTHORISED` state | Check status with `get-credit-notes --ids=<id>` |
+| `allocate-credit-note` fails with amount error | Allocation exceeds `remainingCredit` or invoice `amountDue` | Inspect both from `get-credit-notes` and `get-invoices --ids=<id>` |
+| `delete-payment` returns payment not found | Payment ID is wrong or already reversed | Re run `get-payments --invoiceId=<id>` to locate the correct `paymentId` |
+| `contactId is required for aged-receivables` | Report requires a contact | Run `get-contacts` and pass the resolved ID with `--contactId` |
+| `Invalid reportName` | Unsupported report name string | Use one of: `profit-loss`, `balance-sheet`, `trial-balance`, `aged-receivables`, `aged-payables`, `bank-summary`, `executive-summary` |
 
-## 19. Minimal Decision Tree
+## 25. Minimal Decision Tree
 
 1. Need access or fresh tokens: run `login`.
 2. Need a contact identifier: run `get-contacts`.
@@ -834,23 +1455,38 @@ If a command fails, inspect the error and apply the likely fix.
 4. Need a valid tax type: run `get-tax-rates`.
 5. Need invoice presentation choices: run `get-branding-themes`.
 6. Need transaction context: run `get-bank-transactions`.
-7. Need to create or update accounting master data: run `create-account`, `create-contact`, or `update-account`.
-8. Need to post a bank reconciliation: run `reconcile`.
-9. Need a new customer invoice: run `draft-invoice`.
-10. Need to revise a draft invoice before approval: run `update-invoice`.
-11. Need to remove a draft invoice entirely: run `delete-invoice`.
-12. Need to approve the draft in Xero terms: run `authorise-invoice`.
-13. Need to deliver the invoice to the customer: run `send-invoice`.
-14. Need the rendered invoice PDF: run `download-invoice-pdf`.
-15. Need an uploaded supporting file on the invoice: run `list-invoice-attachments`, then `download-invoice-attachment`.
+7. Need to review accounts payable bills: run `get-bills`.
+8. Need to review accounts receivable invoices: run `get-invoices`.
+9. Need to create or update accounting master data: run `create-account`, `create-contact`, or `update-account`.
+10. Need to post a bank reconciliation: run `reconcile`.
+11. Need a new customer invoice: run `draft-invoice`.
+12. Need to revise a draft invoice before approval: run `update-invoice`.
+13. Need to remove a draft invoice entirely: run `delete-invoice`.
+14. Need to approve the draft in Xero terms: run `authorise-invoice`.
+15. Need to record payment received against an invoice: run `pay-invoice`.
+16. Need to void an authorised invoice: run `void-invoice`.
+17. Need to deliver the invoice to the customer: run `send-invoice`.
+18. Need the rendered invoice PDF: run `download-invoice-pdf`.
+19. Need an uploaded supporting file on the invoice: run `list-invoice-attachments`, then `download-invoice-attachment`.
+20. Need to attach a file to an AR invoice: run `attach-to-invoice`.
+21. Need to issue a refund or reduce an outstanding balance: run `draft-credit-note`, `authorise-credit-note`, then `allocate-credit-note`.
+22. Need to list existing credit notes: run `get-credit-notes`.
+23. Need to void or delete a credit note: run `void-credit-note` (authorised) or `delete-credit-note` (draft or submitted).
+24. Need to inspect payments on an invoice: run `get-payments --invoiceId=<id>`.
+25. Need to reverse an incorrect payment: run `delete-payment`.
+26. Need a financial report: run `get-report`.
 
-## 20. Recommended Agent Defaults
+## 26. Recommended Agent Defaults
 
 1. Prefer read commands before write commands.
 2. Carry forward exact Xero identifiers from command output instead of retyping names.
 3. Treat every write as live and potentially irreversible from the plugin point of view.
-4. Use file payloads for multi step workflows and anything with multiple invoice lines.
+4. Use file payloads for multi step workflows and anything with multiple invoice or credit note lines.
 5. Separate invoice drafting, authorisation, and delivery in both reasoning and execution.
-6. Surface the created `invoiceID` immediately after drafting.
+6. Surface the created `invoiceID` or `creditNoteId` immediately after drafting so later steps can reuse it.
 7. Ask for confirmation before `send-invoice` unless the user explicitly asked to send immediately.
 8. Prefer `download-invoice-pdf` for customer facing invoice documents and `download-invoice-attachment` for supporting uploaded files.
+9. Run `get-invoices --ids=<id>` before `void-invoice`, `pay-invoice`, or `attach-to-invoice` to confirm the current invoice status.
+10. Run `get-credit-notes --ids=<id>` before `allocate-credit-note` to confirm `remainingCredit` is sufficient.
+11. Run `get-payments --invoiceId=<id>` before `delete-payment` to identify the correct `paymentId`.
+12. Treat `get-report` output as raw Xero row data; interpret row types and cell values in context before presenting to the user.
