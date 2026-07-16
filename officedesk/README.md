@@ -41,6 +41,7 @@ officedesk <plugin> <command> [options]
 officedesk --help
 officedesk --list
 officedesk list-profiles
+officedesk mcp-serve
 ```
 
 ### Delegate to a plugin
@@ -109,6 +110,37 @@ Print the CLI version.
 
 ```bash
 officedesk --version
+```
+
+### `mcp-serve`
+
+Start an MCP (Model Context Protocol) server over stdio, exposing the plugin surface as MCP tools. This is what Claude Desktop launches — no separate bridge, Python runtime, or install step is required; the server is built into the CLI binary on all platforms (macOS, Linux, Windows).
+
+```bash
+officedesk mcp-serve
+```
+
+Tools exposed:
+
+| Tool | Description |
+|---|---|
+| `officedesk_run` | Run a CLI command: `args[0]` must be a discovered plugin (or `--version`/`--help`); anything else is refused. Returns `{ exitCode, stdout, stderr }` as JSON. Accepts an optional `timeout_seconds` (default 120). |
+| `officedesk_doctor` | Report the resolved binary path, `OFFICEDESK_HOME`, CLI version, and the discovered plugin list. |
+
+Plugins are rediscovered on every tool call, so a newly installed plugin is callable immediately — no restart or configuration change needed.
+
+To connect Claude Desktop, add this to `claude_desktop_config.json` (Claude Desktop → Settings → Developer → Edit Config):
+
+```json
+{
+  "mcpServers": {
+    "officedesk": {
+      "command": "/Users/<you>/.officedesk/bin/officedesk",
+      "args": ["mcp-serve"],
+      "env": { "OFFICEDESK_HOME": "/Users/<you>/.officedesk" }
+    }
+  }
+}
 ```
 
 ## Plugin discovery
